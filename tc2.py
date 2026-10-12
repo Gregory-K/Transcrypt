@@ -28,6 +28,9 @@ import time
 from .pyaes import AESModeOfOperationCBC
 
 
+# ~ Constants
+# -----------
+
 MARKER = "TC2"
 
 # Equal-strength scrypt settings from the OWASP Password Storage Cheat Sheet,
@@ -51,6 +54,9 @@ HMAC_SIZE = 32
 # version (1) + timestamp (8) + IV (16)
 HEADER_SIZE = 1 + 8 + BLOCK_SIZE
 
+
+# ~ Exceptions
+# ------------
 
 class TC2Error(Exception):
     """Input is not a valid TC2 part."""
@@ -106,6 +112,9 @@ def _cbc(func_name, key, iv, data):
                     for i in range(0, len(data), BLOCK_SIZE))
 
 
+# ~ Fernet
+# --------
+
 def fernet_encrypt(key, data, iv=None, timestamp=None):
     """Encrypt bytes into a Fernet token (bytes, before base64).
 
@@ -139,7 +148,6 @@ def fernet_decrypt(key, token):
 
 # ~ Public API
 # ------------
-
 
 def is_tc2(text):
     """Return True if 'text' is a single TC2 part (whitespace aside)."""
