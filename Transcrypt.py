@@ -72,6 +72,8 @@ class AlreadyEncryptedError(Exception):
 C_PAD = b"\0"
 KEY_SIZES = [16, 24, 32]
 SETTINGS_FILE = "Transcrypt.sublime-settings"
+# Key of the view regions that mark decrypted parts, and of the status text.
+MARK_KEY = "transcrypt_decrypted"
 
 # Passwords are kept in memory only, never in settings or command arguments.
 # The remembered password lasts until it is forgotten, or the plugin host stops.
@@ -142,8 +144,8 @@ def transcrypt_text(input_text, key_text, enc, encoding='utf-8'):
 def is_encrypted(text):
     """Return True if the whole text looks like one encrypted part.
 
-    TC2 is recognised by its marker. Legacy output has no marker, so any
-    base64 that decodes to whole AES blocks counts as encrypted.
+    TC2 is recognised by its marker. Legacy output has no marker,
+    so any base64 that decodes to whole AES blocks counts as encrypted.
     """
     text = text.strip()
     if not text:
@@ -161,7 +163,7 @@ def encrypt_text(text, password, settings):
 
     'tc2_format' picks TC2 over the legacy format, and 'scrypt_memory'
     picks the TC2 scrypt preset. Text that already looks encrypted is
-    refused, so it is never encrypted twice.
+    refused to avoid being encrypted twice.
     """
     if is_encrypted(text):
         raise AlreadyEncryptedError
@@ -174,16 +176,42 @@ def encrypt_text(text, password, settings):
     return tc2.encrypt(text, password, memory)
 
 
-def decrypt_text(text, password):
-    """Decrypt text in either format, whatever the settings say.
+def decrypt_parts(text, password):
+    """Decrypt 'text' in either format, however tc2_format is set.
 
-    Every TC2 part in the text is decrypted, and the text around them is kept.
-    Text with no TC2 part is decrypted as one legacy part.
+    'text' is the content of a selection, or of the whole document.
+    TC2: every TC2 part in 'text' is decrypted (rest of 'text' is kept as is).
+    Legacy: works only if 'text' is one legacy part as a whole.
+
+    Returns the decrypted 'text', and a list with the (start, end) offsets
+    of each decrypted part in it.
     """
-    if tc2.PATTERN.search(text):
-        return tc2.PATTERN.sub(lambda m: tc2.decrypt(m.group(), password),
-                               text)
-    return transcrypt_text(text, password, enc=False)
+    matches = list(tc2.PATTERN.finditer(text))
+    if not matches:
+        # No TC2 part. Try all of the text as one legacy part. Any other
+        # content in it, e.g. a second legacy part, makes this fail.
+        part = text.strip()
+        start = len(text) - len(text.lstrip())
+        plain = transcrypt_text(part, password, enc=False)
+        return (
+            text[:start] + plain + text[start + len(part):],
+            [(start, start + len(plain))]
+        )
+    pieces, spans, pos, size = [], [], 0, 0
+    for m in matches:
+        plain = tc2.decrypt(m.group(), password)
+        pieces += [text[pos:m.start()], plain]
+        size += m.start() - pos
+        spans.append((size, size + len(plain)))
+        size += len(plain)
+        pos = m.end()
+    pieces.append(text[pos:])
+    return "".join(pieces), spans
+
+
+def decrypt_text(text, password):
+    """Decrypt text in either format, see decrypt_parts()."""
+    return decrypt_parts(text, password)[0]
 
 
 class SetContentsCommand(sublime_plugin.TextCommand):
@@ -235,16 +263,24 @@ class TranscryptCommand(sublime_plugin.TextCommand):
     SETTINGS_TEXT = "Error: Invalid Transcrypt setting. %s"
     ALREADY_TEXT = "Error: The text is already encrypted"
     REMEMBERED_TEXT = (" (the remembered password).")
+    SELECT_TEXT = ("Error: Select the parts to decrypt, or turn on the "
+                   "'decrypt_all_parts' setting")
+    MARK_ANNOTATION = "Transcrypt: decrypted"
+    MARK_STATUS = "Transcrypt: %d decrypted part(s)"
 
-    def transcrypt_regions(self, regions, enc, password, remembered):
-        """Return the new text of each region, or an error message."""
-        settings = sublime.load_settings(SETTINGS_FILE)
+    def transcrypt_regions(self, regions, enc, password, remembered,
+                           settings):
+        """Return the new text and decrypted spans of each region.
+
+        On failure, return None and an error message instead.
+        """
         hint = self.REMEMBERED_TEXT if remembered else ""
         try:
             if enc:
-                return [encrypt_text(self.view.substr(r), password, settings)
+                return [(encrypt_text(self.view.substr(r), password,
+                                      settings), [])
                         for r in regions], None
-            return [decrypt_text(self.view.substr(r), password)
+            return [decrypt_parts(self.view.substr(r), password)
                     for r in regions], None
         except WrongPasswordException:
             return None, self.WRONG_PW_TEXT + hint
@@ -259,39 +295,90 @@ class TranscryptCommand(sublime_plugin.TextCommand):
         except AlreadyEncryptedError:
             return None, self.ALREADY_TEXT
 
+    def marks(self):
+        """Return the marked decrypted parts that are still plain text."""
+        return [r for r in self.view.get_regions(MARK_KEY)
+                if not r.empty() and not is_encrypted(self.view.substr(r))]
+
+    def set_marks(self, regions):
+        """Mark decrypted parts, and show their count in the status bar."""
+        regions = sorted(r for r in regions if not r.empty())
+        if not regions:
+            self.view.erase_regions(MARK_KEY)
+            self.view.erase_status(MARK_KEY)
+            return
+        self.view.add_regions(
+            MARK_KEY, regions, scope="region.yellowish",
+            flags=sublime.DRAW_NO_FILL,
+            annotations=[self.MARK_ANNOTATION] * len(regions))
+        self.view.set_status(MARK_KEY, self.MARK_STATUS % len(regions))
+
+    def target_regions(self, enc, settings):
+        """Return the regions to transcrypt, or None and an error message.
+
+        With no selection, Encrypt takes the marked decrypted parts, or the
+        whole document if there are none. Decrypt takes the whole document,
+        but if it holds TC2 parts within other text, only when
+        'decrypt_all_parts' is on.
+        """
+        regions = [r for r in self.view.sel() if not r.empty()]
+        if regions:
+            return regions, None
+        marks = self.marks()
+        if enc and marks:
+            return marks, None
+        whole = sublime.Region(0, self.view.size())
+        text = self.view.substr(whole)
+        if (not enc and not settings.get("decrypt_all_parts", False)
+                and tc2.PATTERN.search(text) and not is_encrypted(text)):
+            return None, self.SELECT_TEXT
+        return [whole], None
+
     def run(self, edit, enc, save=False, remembered=False):
         # The password comes from transcrypt(), not from the arguments.
         password = _handoff_password
         if password is None:
             return
+        settings = sublime.load_settings(SETTINGS_FILE)
 
-        # Save the document size.
-        view_size = self.view.size()
-
-        # Get selections.
-        regions = self.view.sel()
-        nr_regions = len(regions)
-        # Select the whole document if there is no selection.
-        if nr_regions <= 1 and len(self.view.substr(regions[0])) == 0:
-            regions.clear()
-            regions.add(sublime.Region(0, view_size))
-
+        regions, error = self.target_regions(enc, settings)
+        results = []
         # Transcrypt every region before changing any, so an error leaves
         # the document untouched.
-        regions = list(regions)
-        results, error = self.transcrypt_regions(regions, enc, password,
-                                                 remembered)
-        if error:
+        if regions:
+            regions.sort()
+            results, error = self.transcrypt_regions(
+                regions, enc, password, remembered, settings)
+        if error or not regions or results is None:
             window = self.view.window()
-            if window:
+            if error and window:
                 show_panel_message(window, error)
-        else:
-            # Replace from the end, so earlier regions keep their offsets.
-            for region, result in reversed(list(zip(regions, results))):
-                self.view.replace(edit, region, result)
-            # Save only after a successful encryption, never the plain text.
-            if save:
-                sublime.set_timeout(lambda: self.view.run_command("save"))
+            self.view.end_edit(edit)
+            return
+
+        # Drop the marks inside the regions being replaced: encrypted parts
+        # are no longer plain text, and decrypted parts get new marks below.
+        # Sublime Text moves the other marks along with the edits.
+        marks = [m for m in self.view.get_regions(MARK_KEY)
+                 if not any(m.intersects(r) for r in regions)]
+        self.set_marks(marks)
+
+        # Replace from the end, so earlier regions keep their offsets.
+        for region, (result, _) in reversed(list(zip(regions, results))):
+            self.view.replace(edit, region, result)
+
+        # Mark the decrypted parts, at their offsets after all replacements.
+        shift, new_marks = 0, []
+        for region, (result, spans) in zip(regions, results):
+            start = region.begin() + shift
+            new_marks += [sublime.Region(start + a, start + b)
+                          for a, b in spans]
+            shift += len(result) - region.size()
+        self.set_marks(self.view.get_regions(MARK_KEY) + new_marks)
+
+        # Save only after a successful encryption, never the plain text.
+        if save:
+            sublime.set_timeout(lambda: self.view.run_command("save"))
         self.view.end_edit(edit)
 
 

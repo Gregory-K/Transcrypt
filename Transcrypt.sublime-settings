@@ -4,6 +4,13 @@
   // Decrypt detects the format by itself, whatever the value of this.
   "tc2_format": false,
 
+  // Decrypt with nothing selected, in a document that holds TC2 parts
+  // within unencrypted text.
+  // 'false' decrypts only selected parts, or a document that is encrypted
+  //         in whole (one part).
+  // 'true'  decrypts every TC2 part.
+  "decrypt_all_parts": false,
+
   // scrypt memory cost for TC2, in MiB: 128, 64, 32, 16 or 8.
   // All are about equally strong.
   // Lower values suit slower machines with less RAM available.

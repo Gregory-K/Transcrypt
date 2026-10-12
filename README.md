@@ -36,12 +36,29 @@ If you used the original package, back up and remove it first. Back up any encry
 
 The commands are in the context menu under `Transcrypt`, and in the command palette as `Transcrypt: ...`.
 
-- **Encrypt** asks for a password twice. It encrypts each selection, or the whole document if nothing is selected.
-- **Decrypt** asks for the password once. It auto-recognises the format. Every TC2 part in the selection, or in the whole document, is decrypted, and the text around them is left as it is. Without TC2 parts, the selection or the whole document is decrypted as one legacy part.
-- **Remember password for this session** asks for a password twice and keeps it until you turn it off (toggle) or close Sublime Text. Meanwhile, Encrypt and Decrypt use it without asking.
+- **Encrypt** asks for the password twice.
+  - The whole document: select nothing, or select all. If decrypted parts are 'marked', select nothing encrypts only those (see below).
+  - Parts of the document: Select the parts to encrypt. Each selection becomes a separate encrypted part.
+- **Decrypt** asks for the password once, and auto-recognises the format.
+  - Whole encrypted document: Select nothing or select all.
+  - TC2 parts within other text: Select the parts to decrypt, or select all. Only the TC2 parts are decrypted, the surrounding text is left as is.
+    - If `decrypt_all_parts` is set to true, select nothing to decrypt all TC2 parts at once.
+  - Legacy parts within other text: select each one exactly, nothing more.
+- **Remember password for this session** asks for the password twice and stores it for the current Sublime Text session. The password remains available until you toggle this option off or quit ST. While it is enabled, Encrypt and Decrypt use the stored password without prompting.
 
-Errors show in a panel at the status bar.  
-Text that is already encrypted is refused, so nothing gets encrypted twice.
+To select several parts at once, hold `ctrl` while you select. This works for both Encrypt and Decrypt.
+
+Errors show in a panel at the status bar.
+
+Text that is already encrypted is never encrypted again.
+
+### Decrypted parts are marked
+
+Each decrypted part gets an outline and a "Transcrypt: decrypted" annotation. The status bar shows the number of decrypted parts in the file.
+
+When nothing is selected, Encrypt re-encrypts all marked parts at once and removes their marks. With no marked parts, it encrypts the entire document.
+
+The marks follow your edits. They exist only in the open file, are never saved, and are lost when you close the file. They serve as reminders only and do not prevent you from saving decrypted text.
 
 
 ## Formats
@@ -83,6 +100,13 @@ or `Preferences: Transcrypt Settings` in the command palette.
   // 'false' writes the legacy format, the original package's one.
   // Decrypt detects the format by itself, whatever the value of this.
   "tc2_format": false,
+
+  // Decrypt with nothing selected, in a document that holds TC2 parts
+  // within unencrypted text.
+  // 'false' decrypts only selected parts, or a document that is encrypted
+  //         in whole (one part).
+  // 'true'  decrypts every TC2 part.
+  "decrypt_all_parts": false,
 
   // scrypt memory cost for TC2, in MiB: 128, 64, 32, 16 or 8.
   // All are about equally strong.
