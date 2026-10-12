@@ -174,7 +174,7 @@ Based on
 - [Crypto](https://github.com/mediaupstream/SublimeText-Crypto) by [Derek Anderson](https://github.com/mediaupstream),
 - [Transcrypt](https://github.com/eddiejessup/Transcrypt) by Elliot Marsden, which used
   - [Richard Mitchell's fork](https://github.com/mitchellrj/pycrypto) of [PyCrypto](https://github.com/dlitz/pycrypto).  
-- AES now comes from [pyaes](https://github.com/ricmoo/pyaes) 1.6.1 by Richard Moore (MIT License), included unchanged in `pyaes/`.
+- AES now comes from [pyaes](https://github.com/ricmoo/pyaes) 1.6.1 by Richard Moore (MIT License), included unchanged in `crypto/pyaes/`.
 
 
 ## Authors & Contributors
@@ -191,4 +191,4 @@ Based on
 ## License
 
 MIT License, see [License.txt](License.txt).  
-The included pyaes has its own MIT License, in [pyaes/LICENSE.txt](pyaes/LICENSE.txt).
+The included pyaes has its own MIT License, in [crypto/pyaes/LICENSE.txt](crypto/pyaes/LICENSE.txt).

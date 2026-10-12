@@ -19,7 +19,7 @@ from functools import partial
 import sublime
 import sublime_plugin
 
-from . import legacy, tc2
+from .crypto import legacy, tc2
 
 
 # ~ Constants and State
