@@ -2,7 +2,7 @@
   // Encrypt with the TC2 format.
   // 'false' writes the legacy format, the original package's one.
   // Decrypt detects the format by itself, whatever the value of this.
-  "tc2_format": false,
+  "tc2_format": true,
 
   // Decrypt with nothing selected, in a document that holds TC2 parts
   // within unencrypted text.

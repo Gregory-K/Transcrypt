@@ -82,7 +82,7 @@ def encrypt_text(text, password, settings):
     """
     if is_encrypted(text):
         raise AlreadyEncryptedError
-    if not settings.get("tc2_format", False):
+    if not settings.get("tc2_format", True):
         return legacy.transcrypt_text(text, password, enc=True)
     memory = settings.get("scrypt_memory", tc2.DEFAULT_MEMORY)
     if memory not in tc2.PRESETS:

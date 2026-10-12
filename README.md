@@ -52,6 +52,10 @@ Errors show in a panel at the status bar.
 
 Text that is already encrypted is never encrypted again.
 
+> Attention:  
+> Keep each encrypted part on one line. If line breaks get into it,  
+> e.g. by hard-wrapping, it cannot be decrypted until they are removed.
+
 ### Decrypted parts are marked
 
 Each decrypted part gets an outline and a "Transcrypt: decrypted" annotation. The status bar shows the number of decrypted parts in the file.
@@ -69,7 +73,8 @@ No encryption stays safe for ever. Both formats depend on the strength of your p
 
 ### TC2 format
 
-Recommended. Turn it on with `tc2_format` set `true`. An encrypted part looks like this: `TC2$17.8.1$<salt>$<encrypted text>`
+The default, and recommended. An encrypted part looks like this:  
+`TC2$17.8.1$<salt>$<encrypted text>`
 
 - The key is derived from the password with scrypt and a random salt, so the same password never gives the same key twice, and guessing passwords is slow.
 - The text is encrypted as a [Fernet](https://github.com/fernet/spec/blob/master/Spec.md) token, AES-128-CBC with a random IV plus an HMAC-SHA256 checksum. A wrong password or modified text is detected before anything is decrypted.
@@ -78,7 +83,7 @@ Recommended. Turn it on with `tc2_format` set `true`. An encrypted part looks li
 
 ### Legacy format
 
-The format of the original package, and still the default, so existing notes and other installs of the original keep working.
+The format of the original package. Decrypt still reads it, so existing notes keep working. To continue using it for encryption set `tc2_format` to `false`.
 
 Weaknesses:  
 - The password, padded with zero bytes, is used directly as the key. There is no salt and no key derivation.
@@ -86,7 +91,7 @@ Weaknesses:
 - There is no checksum. A wrong password is only noticed when the result is not valid text, and modified text is not detected.
 - Several legacy parts in one document must be selected one by one (see Usage).
 
-To move a legacy note to TC2, decrypt it, set `"tc2_format": true`, and encrypt it again.
+To move a legacy note to TC2, decrypt it and encrypt it again.
 
 
 ## Settings
@@ -99,7 +104,7 @@ or `Preferences: Transcrypt Settings` in the command palette.
   // Encrypt with the TC2 format.
   // 'false' writes the legacy format, the original package's one.
   // Decrypt detects the format by itself, whatever the value of this.
-  "tc2_format": false,
+  "tc2_format": true,
 
   // Decrypt with nothing selected, in a document that holds TC2 parts
   // within unencrypted text.
