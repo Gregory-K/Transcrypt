@@ -159,13 +159,13 @@ def is_encrypted(text):
 def encrypt_text(text, password, settings):
     """Encrypt text in the format chosen by the settings.
 
-    'secure_format' picks TC2 over the legacy format, and 'scrypt_memory'
+    'tc2_format' picks TC2 over the legacy format, and 'scrypt_memory'
     picks the TC2 scrypt preset. Text that already looks encrypted is
     refused, so it is never encrypted twice.
     """
     if is_encrypted(text):
         raise AlreadyEncryptedError
-    if not settings.get("secure_format", False):
+    if not settings.get("tc2_format", False):
         return transcrypt_text(text, password, enc=True)
     memory = settings.get("scrypt_memory", tc2.DEFAULT_MEMORY)
     if memory not in tc2.PRESETS:

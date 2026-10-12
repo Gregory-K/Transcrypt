@@ -1,7 +1,8 @@
 {
-  // Encrypt with the secure TC2 format. false writes the legacy format.
+  // Encrypt with the TC2 format.
+  // 'false' writes the legacy format, the original package's one.
   // Decrypt detects the format by itself, whatever the value of this.
-  "secure_format": false,
+  "tc2_format": false,
 
   // scrypt memory cost for TC2, in MiB: 128, 64, 32, 16 or 8.
   // All are about equally strong.
