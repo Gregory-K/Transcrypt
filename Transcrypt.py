@@ -101,11 +101,19 @@ def encrypt_bytes(secret, s):
 
 
 def transcrypt_text(input_text, key_text, enc, encoding='utf-8'):
+    # On decryption, keep surrounding whitespace (e.g. a document's final
+    # newline) out of the cipher text and put it back around the result.
+    lead = trail = ""
+    if not enc:
+        stripped = input_text.lstrip()
+        lead = input_text[:len(input_text) - len(stripped)]
+        input_text = stripped.rstrip()
+        trail = stripped[len(input_text):]
     secret = AES.new(normalize_key(key_text.encode(encoding)))
     crypt_bytes_func = encrypt_bytes if enc else decrypt_bytes
     output_bytes = crypt_bytes_func(secret, input_text.encode(encoding))
     try:
-        return output_bytes.decode(encoding)
+        return lead + output_bytes.decode(encoding) + trail
     except UnicodeError:
         if enc:
             raise
