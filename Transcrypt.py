@@ -2,14 +2,19 @@
 @name     Transcrypt
 @package  sublime_plugin
 @author   Elliot Marsden
+          Gregory-K (Sublime Text 4 fork)
 
-This Sublime Text 4 plugin adds AES encryption and decryption
-to the right-click context menu.
+This Sublime Text 4 plugin encrypts and decrypts a whole document, or one
+or more selections, with a password. It writes the legacy format of the
+original package, or the TC2 format, and decrypts both.
 
 Usage:
-- Make a selection, or none for the whole file.
-- Choose Transcrypt > Encrypt or Decrypt from the context menu.
-- Enter a password.
+- Select the parts to encrypt or decrypt, or select all.
+- Choose Transcrypt > Encrypt or Decrypt from the context menu,
+  or Transcrypt: Encrypt or Decrypt from the command palette.
+- Enter the password.
+
+Selecting nothing works too, see README.md for more info.
 """
 
 import base64

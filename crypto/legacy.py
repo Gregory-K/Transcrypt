@@ -93,7 +93,7 @@ def decrypt_bytes(secret, s):
     """
     try:
         return secret.decrypt(base64.b64decode(s, validate=True)).rstrip(C_PAD)
-    except (ValueError, binascii.Error) as e:
+    except (ValueError, binascii.Error):
         raise BadPaddingException
 
 
