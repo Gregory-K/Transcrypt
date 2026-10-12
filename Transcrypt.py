@@ -65,6 +65,10 @@ class SettingsError(Exception):
     pass
 
 
+class AlreadyEncryptedError(Exception):
+    pass
+
+
 C_PAD = b"\0"
 KEY_SIZES = [16, 24, 32]
 SETTINGS_FILE = "Transcrypt.sublime-settings"
@@ -129,12 +133,32 @@ def transcrypt_text(input_text, key_text, enc, encoding='utf-8'):
             raise WrongPasswordException
 
 
+def is_encrypted(text):
+    """Return True if the whole text looks like one encrypted part.
+
+    TC2 is recognised by its marker. Legacy output has no marker, so any
+    base64 that decodes to whole AES blocks counts as encrypted.
+    """
+    text = text.strip()
+    if not text:
+        return False
+    if tc2.is_tc2(text):
+        return True
+    try:
+        return len(base64.b64decode(text, validate=True)) % AES.block_size == 0
+    except (ValueError, binascii.Error):
+        return False
+
+
 def encrypt_text(text, password, settings):
     """Encrypt text in the format chosen by the settings.
 
     'secure_format' picks TC2 over the legacy format, and 'scrypt_memory'
-    picks the TC2 scrypt preset.
+    picks the TC2 scrypt preset. Text that already looks encrypted is
+    refused, so it is never encrypted twice.
     """
+    if is_encrypted(text):
+        raise AlreadyEncryptedError
     if not settings.get("secure_format", False):
         return transcrypt_text(text, password, enc=True)
     memory = settings.get("scrypt_memory", tc2.DEFAULT_MEMORY)
@@ -191,6 +215,7 @@ class TranscryptCommand(sublime_plugin.TextCommand):
     TC2_AUTH_TEXT = "Error: Wrong password, or the text was modified"
     TC2_BAD_TEXT = "Error: Invalid TC2 encrypted text (%s)"
     SETTINGS_TEXT = "Error: Invalid Transcrypt setting. %s"
+    ALREADY_TEXT = "Error: The text is already encrypted"
 
     def transcrypt_regions(self, regions, enc, password):
         """Return the new text of each region, or an error message."""
@@ -211,6 +236,8 @@ class TranscryptCommand(sublime_plugin.TextCommand):
             return None, self.TC2_BAD_TEXT % e
         except SettingsError as e:
             return None, self.SETTINGS_TEXT % e
+        except AlreadyEncryptedError:
+            return None, self.ALREADY_TEXT
 
     def run(self, edit, enc, password, save=False):
         # Save the document size.
@@ -282,56 +309,3 @@ class DecryptCommand(sublime_plugin.WindowCommand):
     def run(self):
         get_input(self.window, self.ENTER_TEXT,
                   partial(decrypt, self.window.active_view()))
-
-
-# Related to encrypt-on-save.
-
-class TranscryptSaveCommand(sublime_plugin.TextCommand):
-
-    DEFAULT = False
-    ON_SAVE = 'ON_SAVE'
-
-    @classmethod
-    def on_save_is_active(cls, view):
-        var = view.settings().get(cls.ON_SAVE)
-        return cls.DEFAULT if var is None else var
-
-    @property
-    def is_active(self):
-        return self.on_save_is_active(self.view)
-
-    def run(self, edit):
-        """Do relevant command.
-
-        If encrypt on save is enabled, display an encryption dialog,
-        encrypt, then save. If encrypt on save is disabled, just save.
-        """
-
-        # End edit immediately because we aren't doing any editing.
-        self.view.end_edit(edit)
-
-        window = self.view.window()
-        if not self.is_active:
-            self.view.run_command('save')
-        elif window:
-            window.run_command("encrypt", {'save': True})
-
-
-class ToggleEncryptOnSaveCommand(sublime_plugin.WindowCommand):
-
-    ACTIVE_STATUS_TEXT = 'Encrypt on save'
-
-    @property
-    def active_view(self):
-        return self.window.active_view()
-
-    @property
-    def is_active(self):
-        return TranscryptSaveCommand.on_save_is_active(self.active_view)
-
-    def run(self):
-        view = self.active_view
-        view.settings().set(TranscryptSaveCommand.ON_SAVE, not self.is_active)
-        # Add status to the status bar, if active
-        view.set_status(TranscryptSaveCommand.ON_SAVE,
-                        self.ACTIVE_STATUS_TEXT if self.is_active else '')

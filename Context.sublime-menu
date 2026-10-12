@@ -10,11 +10,6 @@
       {
         "caption": "Decrypt",
         "command": "decrypt"
-      },
-      {
-        "caption": "Toggle encrypt on save",
-        "command": "toggle_encrypt_on_save",
-        "checkbox": true
       }
     ]
   }

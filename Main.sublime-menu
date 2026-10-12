@@ -15,11 +15,6 @@
           {
             "caption": "Decrypt",
             "command": "decrypt"
-          },
-          {
-            "caption": "Toggle encrypt on save",
-            "command": "toggle_encrypt_on_save",
-            "checkbox": true
           }
         ]
       }
@@ -67,31 +62,13 @@
                 "caption": "-"
               },
               {
-                "command": "open_file",
+                "caption": "Key Bindings",
+                "command": "edit_settings",
                 "args": {
-                  "file": "${packages}/Transcrypt/Default (OSX).sublime-keymap",
-                  "platform": "OSX"
-                },
-                "caption": "Key Bindings – Default"
-              },
-              {
-                "command": "open_file",
-                "args": {
-                  "file": "${packages}/Transcrypt/Default (Linux).sublime-keymap",
-                  "platform": "Linux"
-                },
-                "caption": "Key Bindings – Default"
-              },
-              {
-                "command": "open_file",
-                "args": {
-                  "file": "${packages}/Transcrypt/Default (Windows).sublime-keymap",
-                  "platform": "Windows"
-                },
-                "caption": "Key Bindings – Default"
-              },
-              {
-                "caption": "-"
+                  "base_file": "${packages}/Transcrypt/Default (${platform}).sublime-keymap.json",
+                  "user_file": "${packages}/User/Default (${platform}).sublime-keymap",
+                  "default": "[\n\t$0\n]\n"
+                }
               }
             ]
           }
