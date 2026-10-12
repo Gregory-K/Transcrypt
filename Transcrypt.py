@@ -13,54 +13,41 @@ from the context menu and then enter a password
 import base64
 import binascii
 import bisect
-import os
-import zipfile
-import sys
 from functools import partial
 
 import sublime
 import sublime_plugin
 
-
-BASE_PATH = os.path.abspath(os.path.dirname(__file__))
-CRYPTO_PATH = os.path.join(BASE_PATH, "Crypto")
-IS_64BITS = sys.maxsize > 2 ** 32
-
-# Set the zipfile path according to the platform.
-if sys.platform == "darwin":
-    # OS X
-    ZIP_FILE_NAME = "macos.zip"
-elif sys.platform in ("linux", "linux2"):
-    # Linux.
-    if IS_64BITS:
-        ZIP_FILE_NAME = "linux64.zip"
-    else:
-        ZIP_FILE_NAME = "linux32.zip"
-elif sys.platform == "win32":
-    # Windows.
-    if IS_64BITS:
-        ZIP_FILE_NAME = "win64.zip"
-    else:
-        ZIP_FILE_NAME = "win32.zip"
-ZIP_FILE_PATH = os.path.join(CRYPTO_PATH, ZIP_FILE_NAME)
+from .pyaes import AESModeOfOperationECB
 
 
-AES = None
+class AES:
+    """AES in ECB mode, with the subset of the PyCrypto 'AES' API used here.
 
+    pyaes encrypts one block at a time, so data is processed block by
+    block. Data that is not a multiple of 'block_size' raises ValueError,
+    as with PyCrypto.
+    """
 
-def init():
-    """Load AES pre-built binaries."""
-    try:
-        from Transcrypt.Crypto import AES
-    except ImportError:
-        if os.path.isfile(ZIP_FILE_PATH):
-            with zipfile.ZipFile(ZIP_FILE_PATH, "r") as f:
-                f.extractall(CRYPTO_PATH)
-        try:
-            from Transcrypt.Crypto import AES
-        except ImportError:
-            raise Exception("Can't load AES")
-    globals()['AES'] = AES
+    block_size = 16
+
+    def __init__(self, key):
+        self._ecb = AESModeOfOperationECB(key)
+
+    @classmethod
+    def new(cls, key):
+        return cls(key)
+
+    def _blocks(self, func, data):
+        size = self.block_size
+        return b"".join(func(data[i:i + size])
+                        for i in range(0, len(data), size))
+
+    def encrypt(self, data):
+        return self._blocks(self._ecb.encrypt, data)
+
+    def decrypt(self, data):
+        return self._blocks(self._ecb.decrypt, data)
 
 
 class BadPaddingException(Exception):
@@ -283,8 +270,3 @@ class ToggleEncryptOnSaveCommand(sublime_plugin.WindowCommand):
         # Add status to the status bar, if active
         view.set_status(TranscryptSaveCommand.ON_SAVE,
                         self.ACTIVE_STATUS_TEXT if self.is_active else '')
-
-
-def plugin_loaded():
-    """Load and unzip the pre-built binary files, if needed."""
-    sublime.set_timeout(init, 200)
