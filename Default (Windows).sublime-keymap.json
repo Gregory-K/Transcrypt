@@ -1,0 +1,17 @@
+// Example key bindings for Transcrypt. None are active by default.
+// Copy the ones you want to your own key bindings, from
+// Preferences > Package Settings > Transcrypt > Key Bindings.
+[
+  {"keys": ["ctrl+k", "e"], "command": "encrypt"},
+  {"keys": ["ctrl+k", "d"], "command": "decrypt"},
+  {"keys": ["ctrl+k", "ctrl+e"], "command": "toggle_encrypt_on_save"},
+
+  // Encrypt before saving, only in views with encrypt-on-save turned on.
+  {
+    "keys": ["ctrl+s"],
+    "command": "transcrypt_save",
+    "context": [
+      {"key": "setting.ON_SAVE", "operator": "equal", "operand": true}
+    ]
+  }
+]

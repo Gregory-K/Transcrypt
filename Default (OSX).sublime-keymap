@@ -1,6 +1,0 @@
-[
-    {"keys": ["super+k", "e"], "command": "encrypt"},
-    {"keys": ["super+k", "d"], "command": "decrypt"},
-    {"keys": ["super+k", "super+e"], "command": "toggle_encrypt_on_save"},
-    {"keys": ["super+s"], "command": "transcrypt_save"}
-]
