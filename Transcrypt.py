@@ -73,6 +73,12 @@ C_PAD = b"\0"
 KEY_SIZES = [16, 24, 32]
 SETTINGS_FILE = "Transcrypt.sublime-settings"
 
+# Passwords are kept in memory only, never in settings or command arguments.
+# The remembered password lasts until it is forgotten, or the plugin host stops.
+# The handoff password lives only while one 'transcrypt' command runs.
+_remembered_password = None
+_handoff_password = None
+
 
 def normalize_key(key):
     """Pad or truncate a key to be compatible with AES encryption.
@@ -207,6 +213,18 @@ def get_input(window, message, callback):
     window.show_input_panel(message, "", callback, None, None)
 
 
+def get_new_password(window, message, callback):
+    """Ask for a password twice, and pass it to 'callback' if both match."""
+    def confirm(password):
+        def check(password_confirm):
+            if password_confirm != password:
+                show_panel_message(window, "Error: Passwords do not match")
+            else:
+                callback(password)
+        get_input(window, "Confirm password:", check)
+    get_input(window, message, confirm)
+
+
 class TranscryptCommand(sublime_plugin.TextCommand):
 
     WRONG_PW_TEXT = "Error: Wrong password"
@@ -216,10 +234,12 @@ class TranscryptCommand(sublime_plugin.TextCommand):
     TC2_BAD_TEXT = "Error: Invalid TC2 encrypted text (%s)"
     SETTINGS_TEXT = "Error: Invalid Transcrypt setting. %s"
     ALREADY_TEXT = "Error: The text is already encrypted"
+    REMEMBERED_TEXT = (" (the remembered password).")
 
-    def transcrypt_regions(self, regions, enc, password):
+    def transcrypt_regions(self, regions, enc, password, remembered):
         """Return the new text of each region, or an error message."""
         settings = sublime.load_settings(SETTINGS_FILE)
+        hint = self.REMEMBERED_TEXT if remembered else ""
         try:
             if enc:
                 return [encrypt_text(self.view.substr(r), password, settings)
@@ -227,11 +247,11 @@ class TranscryptCommand(sublime_plugin.TextCommand):
             return [decrypt_text(self.view.substr(r), password)
                     for r in regions], None
         except WrongPasswordException:
-            return None, self.WRONG_PW_TEXT
+            return None, self.WRONG_PW_TEXT + hint
         except BadPaddingException:
             return None, self.BAD_INPUT_TEXT
         except tc2.TC2AuthError:
-            return None, self.TC2_AUTH_TEXT
+            return None, self.TC2_AUTH_TEXT + hint
         except tc2.TC2Error as e:
             return None, self.TC2_BAD_TEXT % e
         except SettingsError as e:
@@ -239,7 +259,12 @@ class TranscryptCommand(sublime_plugin.TextCommand):
         except AlreadyEncryptedError:
             return None, self.ALREADY_TEXT
 
-    def run(self, edit, enc, password, save=False):
+    def run(self, edit, enc, save=False, remembered=False):
+        # The password comes from transcrypt(), not from the arguments.
+        password = _handoff_password
+        if password is None:
+            return
+
         # Save the document size.
         view_size = self.view.size()
 
@@ -254,7 +279,8 @@ class TranscryptCommand(sublime_plugin.TextCommand):
         # Transcrypt every region before changing any, so an error leaves
         # the document untouched.
         regions = list(regions)
-        results, error = self.transcrypt_regions(regions, enc, password)
+        results, error = self.transcrypt_regions(regions, enc, password,
+                                                 remembered)
         if error:
             window = self.view.window()
             if window:
@@ -269,12 +295,23 @@ class TranscryptCommand(sublime_plugin.TextCommand):
         self.view.end_edit(edit)
 
 
-def transcrypt(enc, view, password, save=False):
-    if view:
+def transcrypt(enc, view, password, save=False, remembered=False):
+    """Run the 'transcrypt' command, handing over the password in memory.
+
+    run_command() returns only after the command has run, so the handoff
+    password is cleared straight after.
+    """
+    global _handoff_password
+    if not view:
+        return
+    _handoff_password = password
+    try:
         view.run_command(
             "transcrypt",
-            {"enc": enc, "password": password, "save": save}
+            {"enc": enc, "save": save, "remembered": remembered}
         )
+    finally:
+        _handoff_password = None
 
 
 encrypt = partial(transcrypt, True)
@@ -284,22 +321,15 @@ decrypt = partial(transcrypt, False)
 class EncryptCommand(sublime_plugin.WindowCommand):
 
     SET_TEXT = "Set password:"
-    CONFIRM_TEXT = "Confirm new password:"
-    NO_MATCH_TEXT = "Error: Passwords do not match"
 
     def run(self, save=False):
-        get_input(self.window, self.SET_TEXT,
-                  partial(self.confirm_then_encrypt, save=save))
-
-    def confirm_then_encrypt(self, password, save=False):
-        def check_then_transcrypt(password_confirm):
-            if password_confirm != password:
-                show_panel_message(self.window, self.NO_MATCH_TEXT)
-            else:
-                # The save, if asked, happens only if encryption succeeds.
-                encrypt(view=self.window.active_view(), password=password,
-                        save=save)
-        get_input(self.window, self.CONFIRM_TEXT, check_then_transcrypt)
+        # The save, if asked, happens only if encryption succeeds.
+        view = self.window.active_view()
+        if _remembered_password is not None:
+            encrypt(view, _remembered_password, save=save, remembered=True)
+        else:
+            get_new_password(self.window, self.SET_TEXT,
+                             partial(encrypt, view, save=save))
 
 
 class DecryptCommand(sublime_plugin.WindowCommand):
@@ -307,5 +337,35 @@ class DecryptCommand(sublime_plugin.WindowCommand):
     ENTER_TEXT = "Enter password:"
 
     def run(self):
-        get_input(self.window, self.ENTER_TEXT,
-                  partial(decrypt, self.window.active_view()))
+        view = self.window.active_view()
+        if _remembered_password is not None:
+            decrypt(view, _remembered_password, remembered=True)
+        else:
+            get_input(self.window, self.ENTER_TEXT, partial(decrypt, view))
+
+
+class ToggleRememberPasswordCommand(sublime_plugin.WindowCommand):
+    """Remember a password for this session, or forget it.
+
+    While a password is remembered, Encrypt and Decrypt use it without
+    asking. It is kept in memory only, so closing Sublime Text forgets it.
+    """
+
+    SET_TEXT = "Password to remember:"
+
+    def is_checked(self):
+        return _remembered_password is not None
+
+    def run(self):
+        global _remembered_password
+        if _remembered_password is not None:
+            _remembered_password = None
+            sublime.status_message("Transcrypt: Password forgotten")
+        else:
+            get_new_password(self.window, self.SET_TEXT, self.remember)
+
+    def remember(self, password):
+        global _remembered_password
+        _remembered_password = password
+        sublime.status_message(
+            "Transcrypt: Password remembered for this session")

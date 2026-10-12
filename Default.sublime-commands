@@ -8,6 +8,10 @@
     "command": "decrypt"
   },
   {
+    "caption": "Transcrypt: Toggle Remember Password",
+    "command": "toggle_remember_password"
+  },
+  {
     "caption": "Preferences: Transcrypt Settings",
     "command": "edit_settings",
     "args": {

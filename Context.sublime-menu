@@ -10,6 +10,14 @@
       {
         "caption": "Decrypt",
         "command": "decrypt"
+      },
+      {
+        "caption": "-"
+      },
+      {
+        "caption": "Remember password for this session",
+        "command": "toggle_remember_password",
+        "checkbox": true
       }
     ]
   }
