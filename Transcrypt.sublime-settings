@@ -1,0 +1,10 @@
+{
+  // Encrypt with the secure TC2 format. false writes the legacy format.
+  // Decrypt detects the format by itself, whatever the value of this.
+  "secure_format": false,
+
+  // scrypt memory cost for TC2, in MiB: 128, 64, 32, 16 or 8.
+  // All are about equally strong.
+  // Lower values suit slower machines with less RAM available.
+  "scrypt_memory": 128,
+}

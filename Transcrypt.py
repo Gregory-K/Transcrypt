@@ -20,6 +20,7 @@ from functools import partial
 import sublime
 import sublime_plugin
 
+from . import tc2
 from .pyaes import AESModeOfOperationECB
 
 
@@ -60,8 +61,13 @@ class WrongPasswordException(Exception):
     pass
 
 
+class SettingsError(Exception):
+    pass
+
+
 C_PAD = b"\0"
 KEY_SIZES = [16, 24, 32]
+SETTINGS_FILE = "Transcrypt.sublime-settings"
 
 
 def normalize_key(key):
@@ -123,6 +129,33 @@ def transcrypt_text(input_text, key_text, enc, encoding='utf-8'):
             raise WrongPasswordException
 
 
+def encrypt_text(text, password, settings):
+    """Encrypt text in the format chosen by the settings.
+
+    'secure_format' picks TC2 over the legacy format, and 'scrypt_memory'
+    picks the TC2 scrypt preset.
+    """
+    if not settings.get("secure_format", False):
+        return transcrypt_text(text, password, enc=True)
+    memory = settings.get("scrypt_memory", tc2.DEFAULT_MEMORY)
+    if memory not in tc2.PRESETS:
+        raise SettingsError("'scrypt_memory' must be one of %s"
+                            % ", ".join(map(str, tc2.PRESETS)))
+    return tc2.encrypt(text, password, memory)
+
+
+def decrypt_text(text, password):
+    """Decrypt text in either format, whatever the settings say.
+
+    Every TC2 part in the text is decrypted, and the text around them is kept.
+    Text with no TC2 part is decrypted as one legacy part.
+    """
+    if tc2.PATTERN.search(text):
+        return tc2.PATTERN.sub(lambda m: tc2.decrypt(m.group(), password),
+                               text)
+    return transcrypt_text(text, password, enc=False)
+
+
 class SetContentsCommand(sublime_plugin.TextCommand):
 
     def run(self, edit, text):
@@ -155,8 +188,31 @@ class TranscryptCommand(sublime_plugin.TextCommand):
     WRONG_PW_TEXT = "Error: Wrong password"
     BAD_INPUT_TEXT = ("Error: Input is not valid output of AES encryption, "
                       "sure it's been encrypted?")
+    TC2_AUTH_TEXT = "Error: Wrong password, or the text was modified"
+    TC2_BAD_TEXT = "Error: Invalid TC2 encrypted text (%s)"
+    SETTINGS_TEXT = "Error: Invalid Transcrypt setting. %s"
 
-    def run(self, edit, enc, password):
+    def transcrypt_regions(self, regions, enc, password):
+        """Return the new text of each region, or an error message."""
+        settings = sublime.load_settings(SETTINGS_FILE)
+        try:
+            if enc:
+                return [encrypt_text(self.view.substr(r), password, settings)
+                        for r in regions], None
+            return [decrypt_text(self.view.substr(r), password)
+                    for r in regions], None
+        except WrongPasswordException:
+            return None, self.WRONG_PW_TEXT
+        except BadPaddingException:
+            return None, self.BAD_INPUT_TEXT
+        except tc2.TC2AuthError:
+            return None, self.TC2_AUTH_TEXT
+        except tc2.TC2Error as e:
+            return None, self.TC2_BAD_TEXT % e
+        except SettingsError as e:
+            return None, self.SETTINGS_TEXT % e
+
+    def run(self, edit, enc, password, save=False):
         # Save the document size.
         view_size = self.view.size()
 
@@ -168,29 +224,29 @@ class TranscryptCommand(sublime_plugin.TextCommand):
             regions.clear()
             regions.add(sublime.Region(0, view_size))
 
-        # For each text selection region.
-        for region in regions:
-            data = self.view.substr(region)
-            try:
-                # Encrypt or decrypt the selection.
-                result = transcrypt_text(input_text=data,
-                                         key_text=password,
-                                         enc=enc)
-            except WrongPasswordException:
-                show_panel_message(self.view.window(), self.WRONG_PW_TEXT)
-            except BadPaddingException:
-                show_panel_message(self.view.window(), self.BAD_INPUT_TEXT)
-            else:
-                # Replace selection with encrypted output.
+        # Transcrypt every region before changing any, so an error leaves
+        # the document untouched.
+        regions = list(regions)
+        results, error = self.transcrypt_regions(regions, enc, password)
+        if error:
+            window = self.view.window()
+            if window:
+                show_panel_message(window, error)
+        else:
+            # Replace from the end, so earlier regions keep their offsets.
+            for region, result in reversed(list(zip(regions, results))):
                 self.view.replace(edit, region, result)
+            # Save only after a successful encryption, never the plain text.
+            if save:
+                sublime.set_timeout(lambda: self.view.run_command("save"))
         self.view.end_edit(edit)
 
 
-def transcrypt(enc, view, password):
+def transcrypt(enc, view, password, save=False):
     if view:
         view.run_command(
             "transcrypt",
-            {"enc": enc, "password": password}
+            {"enc": enc, "password": password, "save": save}
         )
 
 
@@ -213,10 +269,9 @@ class EncryptCommand(sublime_plugin.WindowCommand):
             if password_confirm != password:
                 show_panel_message(self.window, self.NO_MATCH_TEXT)
             else:
-                view = self.window.active_view()
-                encrypt(view=view, password=password)
-                if save:
-                    view.run_command('save')
+                # The save, if asked, happens only if encryption succeeds.
+                encrypt(view=self.window.active_view(), password=password,
+                        save=save)
         get_input(self.window, self.CONFIRM_TEXT, check_then_transcrypt)
 
 
@@ -255,10 +310,11 @@ class TranscryptSaveCommand(sublime_plugin.TextCommand):
         # End edit immediately because we aren't doing any editing.
         self.view.end_edit(edit)
 
-        if self.is_active:
-            self.view.window().run_command("encrypt", {'save': True})
-        else:
+        window = self.view.window()
+        if not self.is_active:
             self.view.run_command('save')
+        elif window:
+            window.run_command("encrypt", {'save': True})
 
 
 class ToggleEncryptOnSaveCommand(sublime_plugin.WindowCommand):
