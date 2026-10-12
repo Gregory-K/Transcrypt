@@ -1,5 +1,6 @@
 """
 @name     Transcrypt
+@version  2.0.261013
 @package  sublime_plugin
 @author   Elliot Marsden
           Gregory-K (Sublime Text 4 fork)
