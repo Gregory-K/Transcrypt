@@ -46,7 +46,7 @@ The commands are in the context menu under `Transcrypt`, and in the command pale
   - Legacy parts within other text: select each one exactly, nothing more.
 - **Remember password for this session** asks for the password twice and stores it for the current Sublime Text session. The password remains available until you toggle this option off or quit ST. While it is enabled, Encrypt and Decrypt use the stored password without prompting.
 
-To select several parts at once, hold `ctrl` while you select. This works for both Encrypt and Decrypt.
+To select several parts at once, hold `ctrl`/`cmd` while you select. This works for both Encrypt and Decrypt.
 
 Errors show in a panel at the status bar.
 
@@ -84,7 +84,7 @@ Weaknesses:
 - The password, padded with zero bytes, is used directly as the key. There is no salt and no key derivation.
 - It uses AES in ECB mode, so repeated 16-byte blocks of text give repeated blocks of output.
 - There is no checksum. A wrong password is only noticed when the result is not valid text, and modified text is not detected.
-- Several legacy parts in one document must be selected and decrypted one by one. Encrypted text that was wrapped over several lines cannot be decrypted.
+- Several legacy parts in one document must be selected one by one (see Usage).
 
 To move a legacy note to TC2, decrypt it, set `"tc2_format": true`, and encrypt it again.
 
@@ -165,7 +165,7 @@ rg -P -l '(?<![A-Za-z0-9+/=])(?=\S*\d)(?=\S*[a-z])(?=\S*[A-Z])(?:(?:[A-Za-z0-9+/
 ```
 
 Use `-n -o` instead of `-l` to see each match with its line number.
-Encrypted text that was wrapped over several lines is missed.
+Encrypted text that was hard-wrapped over several lines is missed.
 
 
 ## About
