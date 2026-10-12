@@ -3,11 +3,13 @@
 @package  sublime_plugin
 @author   Elliot Marsden
 
-This Sublime Text 3 plugin adds AES encryption/decryption
-features to the right click context menu.
+This Sublime Text 4 plugin adds AES encryption and decryption
+to the right-click context menu.
 
-Usage: Make a selection (or not), Choose AES Encrypt or AES Decrypt
-from the context menu and then enter a password
+Usage:
+- Make a selection, or none for the whole file.
+- Choose Transcrypt > Encrypt or Decrypt from the context menu.
+- Enter a password.
 """
 
 import base64
@@ -24,8 +26,8 @@ from .pyaes import AESModeOfOperationECB
 class AES:
     """AES in ECB mode, with the subset of the PyCrypto 'AES' API used here.
 
-    pyaes encrypts one block at a time, so data is processed block by
-    block. Data that is not a multiple of 'block_size' raises ValueError,
+    pyaes encrypts one block at a time, so data is processed block by block.
+    Data that is not a multiple of 'block_size' raises ValueError,
     as with PyCrypto.
     """
 
@@ -247,8 +249,7 @@ class TranscryptSaveCommand(sublime_plugin.TextCommand):
         """Do relevant command.
 
         If encrypt on save is enabled, display an encryption dialog,
-        encrypt, then save.
-        If encrypt on save is disabled, just save.
+        encrypt, then save. If encrypt on save is disabled, just save.
         """
 
         # End edit immediately because we aren't doing any editing.
