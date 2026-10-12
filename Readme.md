@@ -1,80 +1,170 @@
-Transcrypt Sublime Text 3 Package
-=================================
+# Transcrypt for Sublime Text 4
 
-Encrypt and decrypt a document or selection(s) using PyCrypto using AES.
+Encrypt and decrypt a whole document, or one or more selections, with a password.
 
-Install
--------
+This is a fork of [eddiejessup/Transcrypt](https://github.com/eddiejessup/Transcrypt), updated for the Python 3.14 plugin host of Sublime Text 4. The original ships compiled PyCrypto modules built for Python 3.3. This fork uses [pyaes](https://github.com/ricmoo/pyaes) instead, a pure Python AES that is included in the package, and adds a stronger encryption format, TC2. It reads everything the original wrote.
 
-### Package Control
-- See [here](http://wbond.net/sublime_packages/package_control) for instructions on installation of Package Control
-- In Sublime Text, search for package 'Transcrypt'
 
-### Manual
-Clone this repository into `Sublime Text 3/Packages` using OS-appropriate location:
+## Install
 
-OSX:
+Requires Sublime Text 4, build 4213 or later.
 
-    git clone git://github.com/eddiejessup/Transcrypt.git ~/Library/Application\ Support/Sublime\ Text\ 3/Packages/Transcrypt
+Do not install "Transcrypt" from Package Control. That is the original package, which no longer loads. Clone this repository into your `Packages` folder instead:
 
-Windows:
+Linux:  
+```sh
+git clone -b dev-ST4 https://github.com/Gregory-K/Transcrypt.git ~/.config/sublime-text/Packages/Transcrypt
+```
 
-    git clone git://github.com/eddiejessup/Transcrypt.git "%APPDATA%\Sublime Text 3\Packages\Transcrypt"
+Windows:  
+```pwsh
+git clone -b dev-ST4 https://github.com/Gregory-K/Transcrypt.git "$env:APPDATA\Sublime Text\Packages\Transcrypt"
 
-Linux:
+# or CMD
+git clone -b dev-ST4 https://github.com/Gregory-K/Transcrypt.git "%APPDATA%\Sublime Text\Packages\Transcrypt"
+```
 
-    git clone git://github.com/eddiejessup/Transcrypt.git ~/.config/sublime-text-3/Packages/Transcrypt
+macOS:  
+```sh
+git clone -b dev-ST4 https://github.com/Gregory-K/Transcrypt.git ~/Library/Application\ Support/Sublime\ Text/Packages/Transcrypt
+```
 
-Usage
------
-Access commands via:
+If you used the original package, back up and remove it first. Back up any encrypted notes somewhere safe before you start.
 
-- Right-click menu item `Transcrypt`
-- Menu item `Tools -> Transcrypt`
-- Default keyboard shortcuts:
-  - Encrypt: `⌘+k, e` (OSX) or `ctrl+k, e` (Linux and Windows)
-  - Decrypt: `⌘+k, d` (OSX) or `ctrl+k, d` (Linux and Windows)
-  - Toggle 'encrypt on save' mode: `⌘+k, ⌘+e` (OSX) or `ctrl+k, ctrl+e` (Linux and Windows)
 
-The commands work on a selection, multiple selections or if nothing is selected, the whole document. Once you trigger the command you will be prompted to enter a password.
+## Usage
 
-### 'Encrypt on save'
+The commands are in the context menu under `Transcrypt`, and in the command palette as `Transcrypt: ...`.
 
-If this mode is enabled, the default save shortcut (`⌘+s` in OSX or `ctrl+s` in Linux and Windows) instead opens a password encryption prompt, and only if a password is entered is the document encrypted and saved. If the encryption is cancelled, the file is not saved. This should help to prevent accidentally saving your private file in plaintext.
+- **Encrypt** asks for a password twice. It encrypts each selection, or the whole document if nothing is selected.
+- **Decrypt** asks for the password once. It auto-recognises the format. Every TC2 part in the selection, or in the whole document, is decrypted, and the text around them is left as it is. Without TC2 parts, the selection or the whole document is decrypted as one legacy part.
+- **Remember password for this session** asks for a password twice and keeps it until you turn it off (toggle) or close Sublime Text. Meanwhile, Encrypt and Decrypt use it without asking.
 
-The mode is toggled on a per-file basis, and should persist as long as the file is open.
+Errors show in a panel at the status bar.  
+Text that is already encrypted is refused, so nothing gets encrypted twice.
 
-When the mode is enabled for a file, 'Encrypt on save' will appear in the status bar (lower left) when viewing that file.
 
-Notes:
+## Formats
 
-- The menu entry for `save` is not changed, so normal saving can still be done if required (or you can simply disable the mode).
-- If you've changed the default key binding for `save` to something else, this won't be remapped automatically (though it can of course be changed manually)
-- This feature is experimental, use at your own risk!
+Choose the format for encryption with the `tc2_format` setting. Decrypt recognises both.
 
-Requirements
-------------
-Due to containing C extension modules pre-compiled for Python 3.3, only Sublime Text 3 is supported.
+No encryption stays safe for ever. Both formats depend on the strength of your password, and on how well their building blocks hold up against future attacks and faster hardware. TC2 uses current, widely reviewed building blocks and is the stronger of the two. The legacy format has known weaknesses, listed below.
 
-Conflicts
-------
-Because this is essentially a fork of [Crypto](https://github.com/mediaupstream/SublimeText-Crypto), it uses the same default key bindings. They should otherwise happily coexist, so if you want to use both for some reason, change the key bindings of one.
+### TC2 format
 
-About
------
-Based on [Crypto](https://github.com/mediaupstream/SublimeText-Crypto) by [Derek Anderson](https://github.com/mediaupstream) and [Richard Mitchell's fork](https://github.com/mitchellrj/pycrypto) of [PyCrypto](https://github.com/dlitz/pycrypto).
+Recommended. Turn it on with `tc2_format` set `true`. An encrypted part looks like this: `TC2$17.8.1$<salt>$<encrypted text>`
 
-Identical interface to Crypto, but supporting much larger text selections by avoiding the subprocess interface.
+- The key is derived from the password with scrypt and a random salt, so the same password never gives the same key twice, and guessing passwords is slow.
+- The text is encrypted as a [Fernet](https://github.com/fernet/spec/blob/master/Spec.md) token, AES-128-CBC with a random IV plus an HMAC-SHA256 checksum. A wrong password or modified text is detected before anything is decrypted.
+- A short note takes about 240 characters. Each part takes about a 1/3 second to encrypt or decrypt, during which Sublime Text pauses.
+- The token includes the time of encryption, which is not encrypted.
 
-Author & Contributors
----------------------
+### Legacy format
+
+The format of the original package, and still the default, so existing notes and other installs of the original keep working.
+
+Weaknesses:  
+- The password, padded with zero bytes, is used directly as the key. There is no salt and no key derivation.
+- It uses AES in ECB mode, so repeated 16-byte blocks of text give repeated blocks of output.
+- There is no checksum. A wrong password is only noticed when the result is not valid text, and modified text is not detected.
+- Several legacy parts in one document must be selected and decrypted one by one. Encrypted text that was wrapped over several lines cannot be decrypted.
+
+To move a legacy note to TC2, decrypt it, set `"tc2_format": true`, and encrypt it again.
+
+
+## Settings
+
+Open them from `Preferences > Package Settings > Transcrypt > Settings`,  
+or `Preferences: Transcrypt Settings` in the command palette.
+
+```json
+{
+  // Encrypt with the TC2 format.
+  // 'false' writes the legacy format, the original package's one.
+  // Decrypt detects the format by itself, whatever the value of this.
+  "tc2_format": false,
+
+  // scrypt memory cost for TC2, in MiB: 128, 64, 32, 16 or 8.
+  // All are about equally strong.
+  // Lower values suit slower machines with less RAM available.
+  "scrypt_memory": 128,
+}
+```
+
+
+## Key bindings
+
+No key bindings are active by default.  
+`Preferences > Package Settings > Transcrypt > Key Bindings`,  
+or `Preferences: Transcrypt Key Bindings` in the command palette, opens the examples next to your own key bindings. Copy the ones you want. On Linux and Windows they are:
+
+```json
+[
+  {"keys": ["ctrl+k", "e"], "command": "encrypt"},
+  {"keys": ["ctrl+k", "d"], "command": "decrypt"},
+
+  // Encrypt, then save. The file is saved only if encryption succeeds.
+  {"keys": ["ctrl+k", "ctrl+s"], "command": "encrypt", "args": {"save": true}}
+]
+```
+
+On macOS, they use `super` instead of `ctrl`. These keys are free in Sublime Text's default key bindings. The [Crypto](https://github.com/mediaupstream/SublimeText-Crypto) package uses the same ones for its own commands.
+
+
+## Security notes
+
+**Hot exit.** While you edit decrypted text, Sublime Text's hot exit can store it, unencrypted, in its session files when you close the window or quit. Encrypt before closing, or set `"hot_exit": "disabled"` in Preferences.
+
+**Undo.** After encrypting, the plain text is still in the undo history of the open file until you close it.
+
+**Remembered password.** It is kept in memory only, never written to disk, and forgotten when Sublime Text closes or the plugin reloads.
+
+**Lost passwords** cannot be recovered.
+
+
+## Encrypt on save was removed
+
+The original package had an 'encrypt on save' mode. It only worked through its takeover of `ctrl+s`. Therefore, File > Save, Save All, and the save prompt on closing still wrote the plain text, and pressing `ctrl+s` twice encrypted the text twice.
+
+Rather than offer a protection it could not keep, this fork removes it. Encrypt before saving, or use the encrypt-then-save key binding.
+
+
+## Finding legacy-encrypted notes
+
+TC2 parts are easy to find with [ripgrep](https://github.com/BurntSushi/ripgrep), since they start with `TC2$`:  
+`rg -l 'TC2\$' <notes-dir>`
+
+Legacy output has no marker. This lists the files that **may** contain some:
+
+```sh
+rg -P -l '(?<![A-Za-z0-9+/=])(?=\S*\d)(?=\S*[a-z])(?=\S*[A-Z])(?:(?:[A-Za-z0-9+/]{64})*(?:[A-Za-z0-9+/]{22}==|[A-Za-z0-9+/]{43}=)|(?:[A-Za-z0-9+/]{64})+)(?![A-Za-z0-9+/=])' <notes-dir>
+```
+
+Use `-n -o` instead of `-l` to see each match with its line number.
+Encrypted text that was wrapped over several lines is missed.
+
+
+## About
+
+Based on  
+- [Crypto](https://github.com/mediaupstream/SublimeText-Crypto) by [Derek Anderson](https://github.com/mediaupstream),
+- [Transcrypt](https://github.com/eddiejessup/Transcrypt) by Elliot Marsden, which used
+  - [Richard Mitchell's fork](https://github.com/mitchellrj/pycrypto) of [PyCrypto](https://github.com/dlitz/pycrypto).  
+- AES now comes from [pyaes](https://github.com/ricmoo/pyaes) 1.6.1 by Richard Moore (MIT License), included unchanged in `pyaes/`.
+
+
+## Authors & Contributors
+
 - [Elliot Marsden](https://github.com/eddiejessup)
 - [Derek Anderson](http://twitter.com/derekanderson)
 - [Isaac Muse](https://github.com/facelessuser)
 - [Richard Mitchell](https://github.com/mitchellrj)
 - [Dwayne Litzenberger](https://github.com/dlitz)
 - [rexdf](https://github.com/rexdf)
+- [Gregory-K](https://github.com/Gregory-K) (Sublime Text 4 fork)
 
-License
--------
-MIT License
+
+## License
+
+MIT License, see [License.txt](License.txt).  
+The included pyaes has its own MIT License, in [pyaes/LICENSE.txt](pyaes/LICENSE.txt).
