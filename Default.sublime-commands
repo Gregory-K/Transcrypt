@@ -1,22 +1,22 @@
 [
-    {
-        "caption": "Transcrypt: Encrypt",
-        "command": "encrypt"
-    },
-    {
-        "caption": "Transcrypt: Decrypt",
-        "command": "decrypt"
-    },
-    {
-        "caption": "Transcrypt: Toggle Encrypt on Save",
-        "command": "toggle_encrypt_on_save"
-    },
-    {
-        "caption": "Preferences: Transcrypt Settings",
-        "command": "edit_settings",
-        "args": {
-            "base_file": "${packages}/Transcrypt/Transcrypt.sublime-settings",
-            "default": "{\n\t$0\n}\n"
-        }
+  {
+    "caption": "Transcrypt: Encrypt",
+    "command": "encrypt"
+  },
+  {
+    "caption": "Transcrypt: Decrypt",
+    "command": "decrypt"
+  },
+  {
+    "caption": "Transcrypt: Toggle Encrypt on Save",
+    "command": "toggle_encrypt_on_save"
+  },
+  {
+    "caption": "Preferences: Transcrypt Settings",
+    "command": "edit_settings",
+    "args": {
+      "base_file": "${packages}/Transcrypt/Transcrypt.sublime-settings",
+      "default": "{\n\t$0\n}\n"
     }
+  }
 ]

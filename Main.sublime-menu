@@ -1,102 +1,102 @@
 [
-    {
-        "caption": "Tools",
-        "mnemonic": "T",
-        "id": "tools",
+  {
+    "caption": "Tools",
+    "mnemonic": "T",
+    "id": "tools",
+    "children": [
+      {
+        "id": "transcryptmenu",
+        "caption": "Transcrypt",
         "children": [
-            {
-                "id": "transcryptmenu",
-                "caption": "Transcrypt",
-                "children": [
-                    {
-                        "caption": "Encrypt",
-                        "command": "encrypt"
-                    },
-                    {
-                        "caption": "Decrypt",
-                        "command": "decrypt"
-                    },
-                    {
-                        "caption": "Toggle encrypt on save",
-                        "command": "toggle_encrypt_on_save",
-                        "checkbox": true
-                    }
-                ]
-            }
+          {
+            "caption": "Encrypt",
+            "command": "encrypt"
+          },
+          {
+            "caption": "Decrypt",
+            "command": "decrypt"
+          },
+          {
+            "caption": "Toggle encrypt on save",
+            "command": "toggle_encrypt_on_save",
+            "checkbox": true
+          }
         ]
-    },
-    {
-        "caption": "Preferences",
-        "mnemonic": "n",
-        "id": "preferences",
+      }
+    ]
+  },
+  {
+    "caption": "Preferences",
+    "mnemonic": "n",
+    "id": "preferences",
+    "children": [
+      {
+        "caption": "Package Settings",
+        "mnemonic": "P",
+        "id": "package-settings",
         "children": [
-            {
-                "caption": "Package Settings",
-                "mnemonic": "P",
-                "id": "package-settings",
-                "children": [
-                    {
-                        "caption": "Transcrypt",
-                        "children": [
-                            {
-                                "caption": "Settings",
-                                "command": "edit_settings",
-                                "args": {
-                                    "base_file": "${packages}/Transcrypt/Transcrypt.sublime-settings",
-                                    "default": "{\n\t$0\n}\n"
-                                }
-                            },
-                            {
-                                "caption": "-"
-                            },
-                            {
-                                "caption": "Settings – Default",
-                                "command": "open_file",
-                                "args": {
-                                    "file": "${packages}/Transcrypt/Transcrypt.sublime-settings"
-                                }
-                            },
-                            {
-                                "caption": "Settings – User",
-                                "command": "open_file",
-                                "args": {
-                                    "file": "${packages}/User/Transcrypt.sublime-settings"
-                                }
-                            },
-                            {
-                                "caption": "-"
-                            },
-                            {
-                                "command": "open_file",
-                                "args": {
-                                    "file": "${packages}/Transcrypt/Default (OSX).sublime-keymap",
-                                    "platform": "OSX"
-                                },
-                                "caption": "Key Bindings – Default"
-                            },
-                            {
-                                "command": "open_file",
-                                "args": {
-                                    "file": "${packages}/Transcrypt/Default (Linux).sublime-keymap",
-                                    "platform": "Linux"
-                                },
-                                "caption": "Key Bindings – Default"
-                            },
-                            {
-                                "command": "open_file",
-                                "args": {
-                                    "file": "${packages}/Transcrypt/Default (Windows).sublime-keymap",
-                                    "platform": "Windows"
-                                },
-                                "caption": "Key Bindings – Default"
-                            },
-                            {
-                                "caption": "-"
-                            }
-                        ]
-                    }
-                ]
-            }
+          {
+            "caption": "Transcrypt",
+            "children": [
+              {
+                "caption": "Settings",
+                "command": "edit_settings",
+                "args": {
+                  "base_file": "${packages}/Transcrypt/Transcrypt.sublime-settings",
+                  "default": "{\n\t$0\n}\n"
+                }
+              },
+              {
+                "caption": "-"
+              },
+              {
+                "caption": "Settings – Default",
+                "command": "open_file",
+                "args": {
+                  "file": "${packages}/Transcrypt/Transcrypt.sublime-settings"
+                }
+              },
+              {
+                "caption": "Settings – User",
+                "command": "open_file",
+                "args": {
+                  "file": "${packages}/User/Transcrypt.sublime-settings"
+                }
+              },
+              {
+                "caption": "-"
+              },
+              {
+                "command": "open_file",
+                "args": {
+                  "file": "${packages}/Transcrypt/Default (OSX).sublime-keymap",
+                  "platform": "OSX"
+                },
+                "caption": "Key Bindings – Default"
+              },
+              {
+                "command": "open_file",
+                "args": {
+                  "file": "${packages}/Transcrypt/Default (Linux).sublime-keymap",
+                  "platform": "Linux"
+                },
+                "caption": "Key Bindings – Default"
+              },
+              {
+                "command": "open_file",
+                "args": {
+                  "file": "${packages}/Transcrypt/Default (Windows).sublime-keymap",
+                  "platform": "Windows"
+                },
+                "caption": "Key Bindings – Default"
+              },
+              {
+                "caption": "-"
+              }
+            ]
+          }
         ]
-    }
+      }
+    ]
+  }
 ]
